@@ -1,0 +1,96 @@
+// === Skrypt: B2K_LogUntilImpact.ks ===
+// Start z GZU i separacja glowicy w apogeum z logowaniem parametrów aż do uderzenia w ziemię
+
+// --- FUNKCJA LOGUJĄCA WYBRANE PARAMETRY ---
+FUNCTION LogFlightSelected {
+    PARAMETER file.
+    
+    SET altLog TO SHIP:ALTITUDE.
+    SET latLog TO SHIP:LATITUDE.
+    SET lonLog TO SHIP:LONGITUDE.
+    
+    SET massLog TO SHIP:MASS.
+    
+    SET dynpressLog TO SHIP:DYNAMICPRESSURE.
+    
+    SET bearingLog TO SHIP:BEARING.
+    SET headingLog TO SHIP:HEADING.
+    
+    SET verticalSpeedLog TO SHIP:VERTICALSPEED.
+    SET groundSpeedLog TO SHIP:GROUNDSPEED.
+    
+    SET angMomXLog TO SHIP:ANGULARMOMENTUM:X.
+    SET angMomYLog TO SHIP:ANGULARMOMENTUM:Y.
+    SET angMomZLog TO SHIP:ANGULARMOMENTUM:Z.
+    
+    SET angVelXLog TO SHIP:ANGULARVEL:X.
+    SET angVelYLog TO SHIP:ANGULARVEL:Y.
+    SET angVelZLog TO SHIP:ANGULARVEL:Z.
+    
+    LOG timestamp(MISSIONTIME):CLOCK + ";" + altLog + ";" + latLog + ";" + lonLog + ";" +
+        massLog + ";" + dynpressLog + ";" +
+        bearingLog + ";" + headingLog + ";" +
+        verticalSpeedLog + ";" + groundSpeedLog + ";" +
+        angMomXLog + ";" + angMomYLog + ";" + angMomZLog + ";" +
+        angVelXLog + ";" + angVelYLog + ";" + angVelZLog
+        TO file.
+}
+
+// --- POBRANIE CZASU OTWARCIA GZU ---
+SET gzu_time TO 1.
+PRINT "Otworzenie GZU po: " + gzu_time + " [s] od separacji boosterow".
+
+// --- OTWÓRZ PLIK CSV DO LOGOWANIA ---
+SET log_file TO "0:/logs/log_of_" + SHIP:NAME + ".csv".
+LOG "TIME;ALT;LAT;LON;MASS;DYNPRESS;BEARING;HEADING;VERTSPEED;GROUNDSPEED;" +
+    "ANGMOMX;ANGMOMY;ANGMOMZ;ANGVELX;ANGVELY;ANGVELZ"
+    TO log_file.
+
+// --- ODLICZANIE STARTOWE ---
+SET countdown TO 10.
+UNTIL countdown < 0 {
+    PRINT "T-" + countdown.
+    WAIT 1.
+    SET countdown TO countdown - 1.
+}
+
+// --- START BOOSTERÓW ---
+STAGE.
+LOCK THROTTLE TO 1.
+PRINT "Start!".
+
+// --- LOGOWANIE PODCZAS WYPALANIA BOOSTERÓW ---
+UNTIL SHIP:SOLID < 0.1 {
+    LogFlightSelected(log_file).
+    WAIT 1.
+}
+
+// --- SEPARACJA BOOSTERÓW ---
+PRINT "Separacja boosterow".
+STAGE.
+
+// --- GŁÓWNY SILNIK I OTWARCIE GZU ---
+WAIT gzu_time.
+PRINT "Glowny silnik".
+LOCK THROTTLE TO 1.
+STAGE.
+
+// --- LOGOWANIE WZLOTU GŁÓWNEGO SILNIKA DO APOGEUM ---
+SET last_alt TO 0.
+UNTIL SHIP:ALTITUDE < last_alt AND TIME > 1 {
+    LogFlightSelected(log_file).
+    SET last_alt TO SHIP:ALTITUDE.
+    WAIT 1.
+}
+
+// ---  SEPARACJI GŁOWICY ---
+//PRINT "Apogeum osiagniete – separacja glowicy".
+//STAGE.
+
+// --- LOGOWANIE DO UDERZENIA W ZIEMIĘ ---
+UNTIL SHIP:ALTITUDE <= 0 {
+    LogFlightSelected(log_file).
+    WAIT 1.
+}
+
+PRINT "Sekwencja zakończona, dane zapisane w pliku CSV do uderzenia w ziemię".
